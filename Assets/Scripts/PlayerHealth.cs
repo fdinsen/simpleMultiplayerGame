@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -11,23 +12,12 @@ public class PlayerHealth : MonoBehaviour
     [SerializeField] private Animator animator;
     [SerializeField] private Rigidbody rigid;
 
-    private TMP_Text respawnText;
-    private RoundHandler roundHandler = null;
+    public delegate void HealthChangeAction(int health, int maxHealth);
+    public static event HealthChangeAction OnHealthChange;
+
+    public static event Action OnDeath;
+
     private bool dead = false;
-
-    private void Start()
-    {
-        roundHandler = FindObjectOfType<RoundHandler>();
-
-        respawnText = GameObject.FindGameObjectWithTag("RespawnScreen").GetComponent<TMP_Text>();
-        if (respawnText != null)
-        {
-            respawnText.enabled = false;
-        }else
-        {
-            Debug.LogError("Please add prefab DefaultCanvas to the scene!!");
-        }
-    }
 
     private void Update()
     {
@@ -35,12 +25,18 @@ public class PlayerHealth : MonoBehaviour
         {
             Respawn();
         }
+        if (Input.GetKeyDown(KeyCode.H))
+        {
+            Damage(15);
+        }
     }
 
     public void Damage(int damage)
     {
         health -= damage;
-        checkHealth();
+        CheckHealth();
+        //I multiplayer, tjek hvis dette er main spiller. Hvis ikke, så kald ikke næste linje
+        OnHealthChange?.Invoke(health, maxHealth);
     }
 
     public void Heal(int heal)
@@ -50,6 +46,8 @@ public class PlayerHealth : MonoBehaviour
         {
             health = maxHealth;
         }
+        //I multiplayer, tjek hvis dette er main spiller. Hvis ikke, så kald ikke næste linje
+        OnHealthChange?.Invoke(health, maxHealth);
     }
 
     public int GetHealth()
@@ -57,12 +55,7 @@ public class PlayerHealth : MonoBehaviour
         return health;
     }
 
-    public int GetMaxHealth()
-    {
-        return maxHealth;
-    }
-
-    private void checkHealth()
+    private void CheckHealth()
     {
         if (health <= 0)
         {
@@ -73,22 +66,17 @@ public class PlayerHealth : MonoBehaviour
     private IEnumerator Die()
     {
         animator.SetBool("Dead", true);
-        roundHandler.ZombieDance();
+        //roundHandler.ZombieDance();
         yield return new WaitForSeconds(2f);
         dead = true;
-        DisplayRespawnText();
+        OnDeath?.Invoke();
     }
 
     public void Respawn()
     {
+        //Omskriv følgende i multiplayer
         Scene scene = SceneManager.GetActiveScene();
         SceneManager.LoadScene(scene.name);
-    }
-
-    private void DisplayRespawnText()
-    {
-        respawnText.enabled = true;
-        respawnText.text = "You Died on round " + roundHandler.GetCurrentRound()  + "!\nPress Enter to respawn!";
     }
 
 }
