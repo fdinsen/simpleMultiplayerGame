@@ -12,30 +12,25 @@ public class HealthDisplay : MonoBehaviour
     [SerializeField] private bool useHSVColor = false;
     [SerializeField] private PlayerHealth playerHealth;
 
-    private void Start()
+    private void OnEnable()
     {
-        if(healthFill == null)
-        {
-            Debug.LogError("Health Fill is not set to a health bar in HealthDisplay.");
-        }
-        if(healthText == null)
-        {
-            Debug.LogError("Health Text is not set to a health TextMeshPro in HealthDisplay");
-        }
+        PlayerHealth.OnHealthChange += UpdateHealth;
     }
 
-    private void FixedUpdate()
+    private void OnDisable()
     {
-        if(healthFill != null && healthText != null)
-        {
-            healthText.text = playerHealth.GetHealth().ToString();
-            healthFill.fillAmount = (float)playerHealth.GetHealth() / playerHealth.GetMaxHealth();
+        PlayerHealth.OnHealthChange -= UpdateHealth;
+    }
 
-            if (useHSVColor)
-            {
-                float value = GetHSV(playerHealth.GetHealth(), playerHealth.GetMaxHealth(), 0, 125, 0);
-                healthFill.color = Color.HSVToRGB(value / 360, 1.0f, 1.0f);
-            }
+    public void UpdateHealth(int health, int maxHealth)
+    {
+        healthText.text = health.ToString();
+        healthFill.fillAmount = (float)health / maxHealth;
+
+        if (useHSVColor)
+        {
+            float value = GetHSV(health, maxHealth, 0, 125, 0);
+            healthFill.color = Color.HSVToRGB(value / 360, 1.0f, 1.0f);
         }
     }
 

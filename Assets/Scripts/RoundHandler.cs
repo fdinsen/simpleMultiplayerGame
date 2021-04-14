@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -13,23 +14,21 @@ public class RoundHandler : MonoBehaviour {
     [SerializeField] private GameObject _bossZombie;
     [SerializeField] private List<GameObject> _baseZombies = new List<GameObject>();
     [SerializeField] private int _bossRound; // Every x round, default: 5
+    [SerializeField] private int _waitTimeBetweenRounds = 5;
+    [SerializeField] private int _beginningCountdown = 5;
+
     private int _zombieBaseHealth;
     public List<GameObject> _zombieSpawners = new List<GameObject>();
-    private TMP_Text textField;
+
+    public delegate void RoundAction(int round, int waitTime);
+    public static RoundAction roundBegun;
+    public static RoundAction roundEnded;
+
+    public delegate void BeginGameAction(int countdown);
+    public static BeginGameAction gameBegun;
 
     // Start is called before the first frame update
     public void Start() {
-        textField = GameObject.FindGameObjectWithTag("Text").GetComponent<TMP_Text>();
-        if(textField != null)
-        {
-            textField.enabled = false;
-        }else
-        {
-            Debug.LogError("Please add prefab DefaultCanvas to the scene!!");
-        }
-
-
-
         _zombieSpawners.AddRange(GameObject.FindGameObjectsWithTag("ZombieSpawner"));
         _zombieBaseHealth = 50;
 
@@ -78,12 +77,12 @@ public class RoundHandler : MonoBehaviour {
         int zombies = CalculateAmountOfBaseZombies();
         
         for (int i = 0; i < zombies; i++) {
-            int zombieSelected = Random.Range(0, _baseZombies.Count);
+            int zombieSelected = UnityEngine.Random.Range(0, _baseZombies.Count);
             _zombiesToSpawn.Add(_baseZombies[zombieSelected]);
         }
 
         foreach (GameObject zombie in _zombiesToSpawn) {
-            GameObject spawner = _zombieSpawners[Random.Range(0, _zombieSpawners.Count)];
+            GameObject spawner = _zombieSpawners[UnityEngine.Random.Range(0, _zombieSpawners.Count)];
             _zombies.Add(spawner.GetComponent<SpawnerScript>().SpawnZombie(zombie, zombieHealth));
         }
 
@@ -93,7 +92,7 @@ public class RoundHandler : MonoBehaviour {
 
             for (int i = 0; i < bosses; i++) {
                 _zombiesToSpawn.Add(_bossZombie);
-                GameObject spawner = _zombieSpawners[Random.Range(0, _zombieSpawners.Count)];
+                GameObject spawner = _zombieSpawners[UnityEngine.Random.Range(0, _zombieSpawners.Count)];
                 _zombies.Add(spawner.GetComponent<SpawnerScript>().SpawnZombie(_bossZombie, bossHealth));
             }
         }
@@ -161,60 +160,27 @@ public class RoundHandler : MonoBehaviour {
         }
     }
 
-    public IEnumerator BeginNewRound(int round)
+    public void BeginNewRound(int round)
     {
         _currentRound = round;
 
-        if (textField != null)
-        {
-
-            textField.enabled = true;
-            textField.text = "Round " + round;
-
-            SpawnZombies();
-
-            yield return new WaitForSeconds(5);
-            textField.enabled = false;
-        }else
-        {
-            SpawnZombies();
-
-            yield return new WaitForSeconds(5);
-        }
+        SpawnZombies();
+        roundBegun?.Invoke(round, _waitTimeBetweenRounds);
     }
 
     public IEnumerator EndRound()
     {
         ZombieCleanUp();
-
-        if(textField != null) {
-            textField.enabled = true;
-            textField.text = "Round complete!";
-
-            yield return new WaitForSeconds(5);
-
-            textField.enabled = true;
-            StartCoroutine(BeginNewRound(_currentRound + 1));
-        }else 
-        {
-            yield return new WaitForSeconds(5);
-
-            StartCoroutine(BeginNewRound(_currentRound + 1));
-        }
+        roundEnded?.Invoke(_currentRound, _waitTimeBetweenRounds);
+        yield return new WaitForSeconds(_waitTimeBetweenRounds);
+        BeginNewRound(_currentRound + 1);
     }
 
     public IEnumerator BeginGame()
     {
-        if(textField != null)
-        {
-            textField.enabled = true;
-            for(int i = 5; i > 0; i--)
-            {
-                textField.text = "Game starting in " + i;
-                yield return new WaitForSeconds(1);
-            }
-            StartCoroutine(BeginNewRound(1));
-        }
+        gameBegun?.Invoke(_beginningCountdown);
+        yield return new WaitForSeconds(_beginningCountdown);
+        BeginNewRound(1);
     }
 
     public int GetCurrentRound()
